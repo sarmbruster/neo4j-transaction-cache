@@ -1,0 +1,13 @@
+neo4j-transaction-scope-cache is a set of neo4j stored procedures to provide a cache being local to the current transaction.
+
+== usage
+
+There are basically a `put(key,value)` and a `get(key)` procedure or user defined function to access the cache. The cache can be accessed from your procedures/UDFs using `Map<String,Object> cache = TxCacheFunctions.cacheThreadLocal().get()`.
+
+Cypher usage example can be found in the link:src/test/java/org/neo4j/contrib/txcache/TxCacheFunctionsTest.java[unit tests].
+
+WARNING: Since Neo4j does not have a hook/callback when a query or read transaction is finished, we need to rely on the user to make sure the cache gets cleaned up. This can be achieved by either
+
+1. using UDF `org.neo4j.contrib.txcache.get('counter', true)` - the optional second argument will flush the cache
+2. using `CALL org.neo4j.contrib.txcache.clear()`
+3. programmatically call `TxCacheFunctions.cacheThreadLocal().remove()`
