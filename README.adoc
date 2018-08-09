@@ -2,12 +2,33 @@ neo4j-transaction-scope-cache is a set of neo4j stored procedures to provide a c
 
 == usage
 
-There are basically a `put(key,value)` and a `get(key)` procedure or user defined function to access the cache. The cache can be accessed from your procedures/UDFs using `Map<String,Object> cache = TxCacheFunctions.cacheThreadLocal().get()`.
+There are basically a `put(key,value)` and a `get(key)` procedure or user defined function to access the cache.
 
-Cypher usage example can be found in the link:src/test/java/org/neo4j/contrib/txcache/TxCacheFunctionsTest.java[unit tests].
+For a programmatic usage in your own procedures / UDFs you need to have a
 
-WARNING: Since Neo4j does not have a hook/callback when a query or read transaction is finished, we need to rely on the user to make sure the cache gets cleaned up. This can be achieved by either
+[source,java]
+-----
+@Context
+public KernelTransaction kernelTransaction
+-----
 
-1. using UDF `org.neo4j.contrib.txcache.get('counter', true)` - the optional second argument will flush the cache
-2. using `CALL org.neo4j.contrib.txcache.clear()`
-3. programmatically call `TxCacheFunctions.cacheThreadLocal().remove()`
+as a injected component.
+
+WARNING: Having a `KernelTransaction` as a injected component requires these procedures to be configured as unrestricted. Amend `dbms.security.procedures.unrestricted=org.neo4j.contrib.txcache.*` to your `neo4j.conf` to do this.
+
+Your code then uses the following snippet:
+[source,java]
+-----
+@Procedure
+public Stream<Something> myProcs(...params...) {
+    Map<String,Object> cache = TxCacheFunctions.getCache(kernelTransaction);
+}
+-----
+
+The implementation of the cache logic is as follows:
+
+ . the `startTime` of the transaction is stored in a `ThreadLocal`, initially we use `-1`
+ . if the `startTime` of the current transaction is different from the `ThreadLocal` 's value a new cache is initialized and also stored as second `ThreadLocal`
+ . if the `startTime` is equals to the one in the `ThreadLocal` the existing cache is used.
+
+Cypher usage examples can be found in the link:src/test/java/org/neo4j/contrib/txcache/TxCacheFunctionsTest.java[unit tests].
